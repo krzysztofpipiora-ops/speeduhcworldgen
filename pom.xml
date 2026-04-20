@@ -6,10 +6,11 @@
 
     <groupId>pl.grok</groupId>
     <artifactId>SpeedUHCWorldGen</artifactId>
-    <version>1.0</version>
+    <version>1.2</version>
     <packaging>jar</packaging>
 
     <name>SpeedUHCWorldGen</name>
+    <description>Zaawansowany generator map Speed UHC z lootem, midem i spawnami</description>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -40,12 +41,14 @@
                 <filtering>true</filtering>
             </resource>
         </resources>
+        
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.13.0</version>
             </plugin>
+            
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -53,7 +56,9 @@
                 <executions>
                     <execution>
                         <phase>package</phase>
-                        <goals><goal>shade</goal></goals>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>
