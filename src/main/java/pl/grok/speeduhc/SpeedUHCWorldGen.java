@@ -1,6 +1,7 @@
 package pl.grok.speeduhc;
 
 import org.bukkit.*;
+import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 import org.bukkit.block.Chest;
 import org.bukkit.command.Command;
@@ -19,7 +20,7 @@ public class SpeedUHCWorldGen extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        getLogger().info("§aSpeedUHCWorldGen §f1.5 §a— custom flat UHC generator włączony!");
+        getLogger().info("§aSpeedUHCWorldGen §f1.5-fix §a— custom flat UHC generator włączony!");
         getCommand("createuhc").setExecutor(this);
     }
 
@@ -39,8 +40,8 @@ public class SpeedUHCWorldGen extends JavaPlugin {
 
         String worldName = args[0];
 
-        player.sendMessage("§6§lGenerowanie customowej mapy Speed UHC...");
-        player.sendMessage("§7Płaski teren + pagórki (idealny do PVP chase)");
+        player.sendMessage("§6§lGenerowanie customowej płaskiej mapy Speed UHC...");
+        player.sendMessage("§7Głównie flat + pojedyncze pagórki");
 
         new BukkitRunnable() {
             @Override
@@ -48,11 +49,11 @@ public class SpeedUHCWorldGen extends JavaPlugin {
                 try {
                     createCustomUHCWorld(player, worldName);
                 } catch (Exception e) {
-                    getLogger().severe("BŁĄD przy generowaniu: " + e.getMessage());
+                    getLogger().severe("BŁĄD: " + e.getMessage());
                     e.printStackTrace();
                 }
             }
-        }.runTaskLater(this, 40L); // lekkie opóźnienie
+        }.runTaskLater(this, 40L);
 
         return true;
     }
@@ -61,10 +62,10 @@ public class SpeedUHCWorldGen extends JavaPlugin {
         WorldCreator creator = new WorldCreator(worldName);
         creator.environment(World.Environment.NORMAL);
         creator.type(WorldType.NORMAL);
-        creator.generator(new FlatUHCGeneator());   // ← nasz custom generator
+        creator.generator(new FlatUHCGeneator());
         creator.seed(System.currentTimeMillis());
 
-        player.sendMessage("§eGenerowanie terenu... (może chwilę potrwać)");
+        player.sendMessage("§eGenerowanie terenu (1000x1000 flat)...");
 
         World world = creator.createWorld();
 
@@ -78,9 +79,6 @@ public class SpeedUHCWorldGen extends JavaPlugin {
         generateLootChests(world, 22);
 
         player.sendMessage("§a§lMapa §f" + worldName + " §a§lgotowa!");
-        player.sendMessage("§7• Płaski teren + pagórki");
-        player.sendMessage("§7• Mid + 22 skrzynie z lootem");
-
         player.teleport(world.getSpawnLocation().add(0.5, 2, 0.5));
     }
 
@@ -98,7 +96,7 @@ public class SpeedUHCWorldGen extends JavaPlugin {
         world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
     }
 
-    /** Custom generator – głównie płasko z pojedynczymi pagórkami */
+    /** Customowy generator – płaski teren z pagórkami */
     private class FlatUHCGeneator extends ChunkGenerator {
         @Override
         public ChunkData generateChunkData(World world, Random rand, int chunkX, int chunkZ, BiomeGrid biome) {
@@ -109,30 +107,28 @@ public class SpeedUHCWorldGen extends JavaPlugin {
                     int worldX = chunkX * 16 + x;
                     int worldZ = chunkZ * 16 + z;
 
-                    // Bazowa wysokość
                     int height = 64;
 
-                    // Delikatne pagórki (pojedyncze, niskie)
-                    double hill = Math.sin(worldX / 25.0) * 1.5 + Math.cos(worldZ / 30.0) * 1.8;
+                    // Delikatne pagórki
+                    double hill = Math.sin(worldX / 28.0) * 1.8 + Math.cos(worldZ / 32.0) * 1.6;
                     height += (int) hill;
 
                     // Rzadkie większe pagórki
-                    if (random.nextInt(35) == 0) {
+                    if (random.nextInt(40) == 0) {
                         height += 2 + random.nextInt(3);
                     }
 
-                    // Warstwy
+                    // Warstwy terenu
                     chunk.setBlock(x, 0, z, Material.BEDROCK);
-                    for (int y = 1; y < height - 4; y++) chunk.setBlock(x, y, z, Material.STONE);
-                    for (int y = height - 4; y < height; y++) chunk.setBlock(x, y, z, Material.DIRT);
+                    for (int y = 1; y < height - 3; y++) chunk.setBlock(x, y, z, Material.STONE);
+                    for (int y = height - 3; y < height; y++) chunk.setBlock(x, y, z, Material.DIRT);
                     chunk.setBlock(x, height, z, Material.GRASS_BLOCK);
 
-                    // Rzadkie kwiaty/trawa
-                    if (random.nextInt(8) == 0) {
-                        chunk.setBlock(x, height + 1, z, random.nextBoolean() ? Material.POPPY : Material.GRASS);
+                    // Trawa i kwiaty
+                    if (random.nextInt(7) == 0) {
+                        chunk.setBlock(x, height + 1, z, random.nextBoolean() ? Material.POPPY : Material.SHORT_GRASS);
                     }
 
-                    // Ustaw biome na Plains (płaski, otwarty)
                     biome.setBiome(x, z, Biome.PLAINS);
                 }
             }
@@ -173,6 +169,5 @@ public class SpeedUHCWorldGen extends JavaPlugin {
         inv.addItem(new ItemStack(Material.DIAMOND, 2 + random.nextInt(3)));
         if (random.nextBoolean()) inv.addItem(new ItemStack(Material.IRON_SWORD));
         if (random.nextInt(3) == 0) inv.addItem(new ItemStack(Material.BOW));
-        if (random.nextInt(4) == 0) inv.addItem(new ItemStack(Material.ARROW, 20));
     }
 }
