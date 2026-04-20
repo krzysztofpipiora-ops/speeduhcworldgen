@@ -1,12 +1,12 @@
 name: SpeedUHCWorldGen
-version: 1.0
+version: 1.1
 main: pl.grok.speeduhc.SpeedUHCWorldGen
 api-version: 1.21
 author: Grok
-description: Generator świata 1000x1000 pod Speed UHC
+description: Generator czterech customowych map pod Speed UHC
 
 commands:
   createuhc:
-    description: Tworzy świat pod Speed UHC 1000x1000
-    usage: /createuhc <nazwa_świata>
+    description: Tworzy 4 customowe mapy Speed UHC
+    usage: /createuhc <nazwa_bazowa>
     permission: speeduhc.create
