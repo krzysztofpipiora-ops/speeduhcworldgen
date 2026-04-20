@@ -8,8 +8,9 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 
-import java.util.*;
+import java.util.Random;
 
 public class SpeedUHCWorldGen extends JavaPlugin {
 
@@ -17,7 +18,7 @@ public class SpeedUHCWorldGen extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        getLogger().info("§aSpeedUHCWorldGen §f1.2 §a— pełny generator z lootem i midem!");
+        getLogger().info("§aSpeedUHCWorldGen §f1.3 §a— bezpieczna wersja uruchomiona!");
         getCommand("createuhc").setExecutor(this);
     }
 
@@ -26,49 +27,70 @@ public class SpeedUHCWorldGen extends JavaPlugin {
         if (!command.getName().equalsIgnoreCase("createuhc")) return false;
 
         if (!(sender instanceof Player player)) {
-            sender.sendMessage("§cTylko gracz!");
+            sender.sendMessage("§cTylko gracz może używać tej komendy!");
             return true;
         }
 
         if (args.length == 0) {
-            player.sendMessage("§cUżycie: §f/createuhc <nazwa_bazowa>");
+            player.sendMessage("§cUżycie: §f/createuhc <nazwa> [typ]");
+            player.sendMessage("§7Typy: forest, mountain, desert, river");
             return true;
         }
 
         String baseName = args[0];
-        player.sendMessage("§6§lTworzenie 4 map Speed UHC z lootem i midem...");
+        String type = args.length > 1 ? args[1].toLowerCase() : "forest";
 
-        String[] types = {"forest", "mountain", "desert", "river"};
+        player.sendMessage("§6§lRozpoczynam generowanie mapy: §e" + baseName + "_" + type);
+        player.sendMessage("§7To może chwilę potrwać...");
 
-        for (int i = 0; i < 4; i++) {
-            String worldName = baseName + "_" + types[i];
-            player.sendMessage("§e→ Generowanie: §f" + worldName);
+        // Tworzenie świata asynchronicznie
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                try {
+                    createCustomWorld(player, baseName, type);
+                } catch (Exception e) {
+                    Bukkit.getScheduler().runTask(SpeedUHCWorldGen.this, () ->
+                            player.sendMessage("§cBłąd podczas tworzenia świata: " + e.getMessage())
+                    );
+                    e.printStackTrace();
+                }
+            }
+        }.runTaskAsynchronously(this);
 
-            WorldCreator creator = new WorldCreator(worldName);
-            creator.environment(World.Environment.NORMAL);
-            creator.type(WorldType.NORMAL);
-            creator.seed(System.currentTimeMillis() + i * 50000);
-
-            World world = creator.createWorld();
-            if (world == null) continue;
-
-            setupUHCWorld(world, types[i]);
-            generateMid(world);
-            generateLootChests(world, 25); // 25 skrzyń na mapę
-            setPlayerSpawns(world);
-
-            if (i == 0) player.teleport(world.getSpawnLocation());
-        }
-
-        player.sendMessage("§a§lWszystko gotowe! §f4 mapy z lootem, midem i spawnami.");
         return true;
     }
 
-    private void setupUHCWorld(World world, String type) {
+    private void createCustomWorld(Player player, String baseName, String type) {
+        String worldName = baseName + "_" + type;
+
+        WorldCreator creator = new WorldCreator(worldName);
+        creator.environment(World.Environment.NORMAL);
+        creator.type(WorldType.NORMAL);
+        creator.seed(System.currentTimeMillis());
+
+        World world = creator.createWorld();
+
+        if (world == null) {
+            Bukkit.getScheduler().runTask(this, () -> player.sendMessage("§cNie udało się stworzyć świata!"));
+            return;
+        }
+
+        Bukkit.getScheduler().runTask(this, () -> {
+            setupUHCWorld(world);
+            generateMid(world);
+            generateLootChests(world, 20);
+            player.sendMessage("§a§lMapa §f" + worldName + " §azostała pomyślnie utworzona!");
+            player.teleport(world.getSpawnLocation().add(0.5, 2, 0.5));
+        });
+    }
+
+    private void setupUHCWorld(World world) {
         WorldBorder border = world.getWorldBorder();
         border.setCenter(0, 0);
         border.setSize(1000);
         border.setWarningDistance(25);
+        border.setDamageAmount(1.0);
 
         world.setPVP(true);
         world.setDifficulty(Difficulty.NORMAL);
@@ -77,35 +99,25 @@ public class SpeedUHCWorldGen extends JavaPlugin {
         world.setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false);
     }
 
-    /** Buduje centralny Mid */
     private void generateMid(World world) {
-        int y = 75; // wysokość mida
+        int y = 72;
         for (int x = -5; x <= 5; x++) {
             for (int z = -5; z <= 5; z++) {
-                Block block = world.getBlockAt(x, y, z);
+                Block b = world.getBlockAt(x, y, z);
                 if (Math.abs(x) == 5 || Math.abs(z) == 5) {
-                    block.setType(Material.OBSIDIAN);
+                    b.setType(Material.OBSIDIAN);
                 } else {
-                    block.setType(Material.DIAMOND_BLOCK);
-                }
-            }
-        }
-        // Kolumny pod mid
-        for (int i = -5; i <= 5; i += 5) {
-            for (int j = -5; j <= 5; j += 5) {
-                for (int h = y - 1; h > y - 15; h--) {
-                    world.getBlockAt(i, h, j).setType(Material.OBSIDIAN);
+                    b.setType(Material.DIAMOND_BLOCK);
                 }
             }
         }
         world.setSpawnLocation(0, y + 2, 0);
     }
 
-    /** Rozsiewa loot chests */
     private void generateLootChests(World world, int amount) {
         for (int i = 0; i < amount; i++) {
-            int x = random.nextInt(800) - 400;
-            int z = random.nextInt(800) - 400;
+            int x = random.nextInt(760) - 380;
+            int z = random.nextInt(760) - 380;
             int y = world.getHighestBlockYAt(x, z) + 1;
 
             Block block = world.getBlockAt(x, y, z);
@@ -117,32 +129,15 @@ public class SpeedUHCWorldGen extends JavaPlugin {
         }
     }
 
-    /** Wypełnia skrzynię dobrym lootem Speed UHC */
     private void fillUHCChest(org.bukkit.inventory.Inventory inv) {
-        // Podstawowe rzeczy
-        inv.addItem(new ItemStack(Material.COOKED_BEEF, 8 + random.nextInt(8)));
+        inv.addItem(new ItemStack(Material.COOKED_BEEF, 6 + random.nextInt(10)));
         inv.addItem(new ItemStack(Material.GOLDEN_APPLE, 1 + random.nextInt(3)));
-        inv.addItem(new ItemStack(Material.IRON_INGOT, 5 + random.nextInt(10)));
-        inv.addItem(new ItemStack(Material.DIAMOND, 1 + random.nextInt(4)));
+        inv.addItem(new ItemStack(Material.IRON_INGOT, 8 + random.nextInt(12)));
+        inv.addItem(new ItemStack(Material.DIAMOND, 2 + random.nextInt(3)));
 
-        // Armor / broń
         if (random.nextBoolean()) inv.addItem(new ItemStack(Material.IRON_SWORD));
-        if (random.nextInt(3) == 0) inv.addItem(new ItemStack(Material.DIAMOND_HELMET));
-        if (random.nextInt(4) == 0) inv.addItem(new ItemStack(Material.BOW));
-        if (random.nextInt(3) == 0) inv.addItem(new ItemStack(Material.ARROW, 16 + random.nextInt(32)));
-
-        // Inne
-        if (random.nextBoolean()) inv.addItem(new ItemStack(Material.ENDER_PEARL, 1 + random.nextInt(2)));
-        if (random.nextInt(5) == 0) inv.addItem(new ItemStack(Material.ENCHANTED_GOLDEN_APPLE));
-    }
-
-    /** Ustawia 4 losowe spawny dla graczy */
-    private void setPlayerSpawns(World world) {
-        for (int i = 0; i < 4; i++) {
-            int x = random.nextInt(500) - 250;
-            int z = random.nextInt(500) - 250;
-            int y = world.getHighestBlockYAt(x, z) + 2;
-            world.setSpawnLocation(x, y, z); // tymczasowo – w pełni możesz zapisać listę spawnów
-        }
+        if (random.nextInt(3) == 0) inv.addItem(new ItemStack(Material.BOW));
+        if (random.nextInt(3) == 0) inv.addItem(new ItemStack(Material.ARROW, 20 + random.nextInt(20)));
+        if (random.nextBoolean()) inv.addItem(new ItemStack(Material.ENDER_PEARL));
     }
 }
