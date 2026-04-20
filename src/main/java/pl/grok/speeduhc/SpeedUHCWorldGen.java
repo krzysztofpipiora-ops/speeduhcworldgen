@@ -20,7 +20,7 @@ public class SpeedUHCWorldGen extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        getLogger().info("§aSpeedUHCWorldGen §f1.5-fix3 §a— czysta płaska mapa!");
+        getLogger().info("§aSpeedUHCWorldGen §f1.6 §a— gładkie pagórki!");
         getCommand("createuhc").setExecutor(this);
     }
 
@@ -40,30 +40,30 @@ public class SpeedUHCWorldGen extends JavaPlugin {
 
         String worldName = args[0];
 
-        player.sendMessage("§6§lGenerowanie czystej płaskiej mapy Speed UHC...");
-        player.sendMessage("§7Bez dirtowych słupów — tylko delikatne pagórki");
+        player.sendMessage("§6§lGenerowanie mapy z naturalnymi pagórkami...");
+        player.sendMessage("§7Płaski teren + gładkie, naturalne wzniesienia");
 
         new BukkitRunnable() {
             @Override
             public void run() {
-                createCleanUHCWorld(player, worldName);
+                createSmoothUHCWorld(player, worldName);
             }
         }.runTaskLater(this, 30L);
 
         return true;
     }
 
-    private void createCleanUHCWorld(Player player, String worldName) {
+    private void createSmoothUHCWorld(Player player, String worldName) {
         WorldCreator creator = new WorldCreator(worldName);
         creator.environment(World.Environment.NORMAL);
-        creator.generator(new CleanFlatGenerator());
+        creator.generator(new SmoothFlatGenerator());
         creator.seed(System.currentTimeMillis());
 
         player.sendMessage("§eGenerowanie terenu...");
 
         World world = creator.createWorld();
         if (world == null) {
-            player.sendMessage("§cNie udało się stworzyć świata!");
+            player.sendMessage("§cBłąd tworzenia świata!");
             return;
         }
 
@@ -86,8 +86,8 @@ public class SpeedUHCWorldGen extends JavaPlugin {
         world.setGameRule(GameRule.KEEP_INVENTORY, false);
     }
 
-    /** NAPRAWIONY generator — zero słupów */
-    private class CleanFlatGenerator extends ChunkGenerator {
+    /** Lepszy generator — gładkie, naturalne pagórki */
+    private class SmoothFlatGenerator extends ChunkGenerator {
         @Override
         public ChunkData generateChunkData(World world, Random rand, int chunkX, int chunkZ, BiomeGrid biome) {
             ChunkData chunk = createChunkData(world);
@@ -97,30 +97,28 @@ public class SpeedUHCWorldGen extends JavaPlugin {
                     int wx = chunkX * 16 + x;
                     int wz = chunkZ * 16 + z;
 
-                    // Bazowa wysokość
-                    int height = 64 
-                        + (int)(Math.sin(wx / 40.0) * 1.8) 
-                        + (int)(Math.cos(wz / 35.0) * 1.6);
+                    // Bardziej naturalna funkcja wysokości
+                    double heightNoise = 
+                        Math.sin(wx / 45.0) * 2.5 +
+                        Math.cos(wz / 38.0) * 2.2 +
+                        Math.sin(wx / 12.0 + wz / 15.0) * 0.8;
 
-                    // Bardzo rzadkie małe pagórki
-                    if (random.nextInt(50) == 0) {
-                        height += random.nextInt(3) + 1;
+                    int height = 63 + (int) heightNoise;
+
+                    // Bardzo rzadkie większe pagórki
+                    if ((wx % 47 == 0) && (wz % 53 == 0)) {
+                        height += 3 + random.nextInt(4);
                     }
 
-                    // Warstwy
+                    // Warstwy terenu
                     chunk.setBlock(x, 0, z, Material.BEDROCK);
-                    for (int y = 1; y < height - 3; y++) {
-                        chunk.setBlock(x, y, z, Material.STONE);
-                    }
-                    for (int y = height - 3; y < height; y++) {
-                        chunk.setBlock(x, y, z, Material.DIRT);
-                    }
+                    for (int y = 1; y < height - 3; y++) chunk.setBlock(x, y, z, Material.STONE);
+                    for (int y = height - 3; y < height; y++) chunk.setBlock(x, y, z, Material.DIRT);
 
-                    // Poprawnie ustawiamy trawę na wysokości "height"
                     chunk.setBlock(x, height, z, Material.GRASS_BLOCK);
 
-                    // Trawa i kwiaty nad ziemią
-                    if (random.nextInt(7) == 0) {
+                    // Roślinność
+                    if (random.nextInt(6) == 0) {
                         chunk.setBlock(x, height + 1, z, random.nextBoolean() ? Material.SHORT_GRASS : Material.POPPY);
                     }
 
